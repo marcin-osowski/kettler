@@ -1,0 +1,72 @@
+
+RS: reset
+CM: command mode
+EE: unknown, but it clearly changes state, error messages change
+
+PD, PE, PT, PW, ST: all return the same thing, which is the current state of the machine
+# heartRate cadence speed distanceInFunnyUnits destPower energy timeElapsed realPower
+# 000 052 095 000 030 0001 00:12 030
+
+PD: putdistance. The argument is the distance in 0.1km. The values are between 0 and999
+PT: puttime. The argument is the time in seconds. The values are between 0 and 9959. First two digits describe minutes last two digits describe seconds. If the number of seconds is greater than 59 it will be reduced to 59
+PP: putpower. The argument is power in watts. The values are between 25 and 400 in 5 steps. The values less than 25 are converted to 25. The values greater than 400 are converted to 400. The values are round down until the becomes multiple of 5
+PW: putwatt. The argument is power in watts. The values are between 25 and 400 in 5 steps. The values less than 25 are converted to 25. The values greater than 400 are converted to 400. The values are round down until the becomes multiple of 5
+PW nnn - set power to nnn watts
+
+
+TR: returns time? How can it have time if it's not plugged in all the time?
+
+
+ES1 - prints some information about the exercise
+
+ID: device ID
+KI: device model
+
+
+
+http://home.vianetworks.nl/users/mhwlng/kettler.lua
+https://past.async.fi/2012/03/kettler-ergometer-serial-protocol/
+https://github.com/joekearney/kettler-to-ant/blob/master/components/kettler_serial.py
+https://technomathematik.blogspot.com/2013/10/ergometer-kettler-fx1-serial-protocol.html
+
+Sent: b'BS'
+Received response:  b'0\t0\t0\t0\t666\t0\t00:00\t0\r\n'
+Sent: b'CA'
+Received response:  b'07670-100-2002\r\n'
+Sent: b'CD'
+Received response:  b'RUN\r\n'
+Skipping: b'CM'
+Skipping: b'EE'
+Sent: b'ID'
+Received response:  b'SJ10X3240\r\n'
+Sent: b'KI'
+Received response:  b'SJ10X UNIX E\r\n'
+Sent: b'KR'
+Received response:  b'0 \r\n'
+Sent: b'LB'
+Received response:  b'ACK\r\n'
+Sent: b'PD'
+Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
+Sent: b'PE'
+Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
+Sent: b'PT'
+Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
+Sent: b'PW'
+Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
+Sent: b'RF'
+Received response:  b'<directory path="/">\r\n\t<entry type="d">users</entry>\r\n\t<entry type="d">programs</entry>\r\n</directory>\r\nACK\r\n'
+Skipping: b'RS'
+Sent: b'SN'
+Received response:  b'247A62BB 0612000443\r\n'
+Sent: b'SP'
+Received response:  b'ACK\r\n'
+Sent: b'ST'
+Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
+Sent: b'TR'
+Received response:  b'16:25:16 09.11.23\r\n'
+Sent: b'TS'
+Received response:  b'ACK\r\n'
+Sent: b'VE'
+Received response:  b'3240\r\n'
+Sent: b'VS'
+Received response:  b'000\r\n'
