@@ -17,7 +17,7 @@ class MqttPublisher:
       print(f"Failed to connect to MQTT, return code: {rc}")
       return
 
-  def send_discovery_messages(self):
+  def send_discovery_messages(self, model, serial_number, sw_version, hw_version):
     def send_one(field_name, field_unit, field_description):
       discovery_topic = 'homeassistant/sensor/kettler/kettler_{}/config'.format(field_name)
       discovery_payload = {
@@ -27,8 +27,12 @@ class MqttPublisher:
         "unique_id": "kettler/{}".format(field_name),
         "value_template": "{{ value_json." + field_name + " }}",
         "device": {
-          "identifiers": ["kettler"],
+          "identifiers": ["serial_number", serial_number],
           "name": "Kettler",
+          "model": model,
+          "manufacturer": "Kettler",
+          "sw_version": sw_version,
+          "hw_version": hw_version,
         },
       }
       self._client.publish(

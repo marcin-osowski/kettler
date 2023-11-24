@@ -28,7 +28,12 @@ def main():
   time.sleep(1.0)
 
   print("Sending MQTT discovery messages...")
-  mqtt.send_discovery_messages()
+  mqtt.send_discovery_messages(
+    model=dev.device_model,
+    serial_number=dev.serial_number,
+    sw_version=dev.version,
+    hw_version=dev.device_id,
+  )
   time.sleep(1.0)
 
   print("Starting main loop...")
