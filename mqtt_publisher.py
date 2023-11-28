@@ -21,7 +21,7 @@ class MqttPublisher:
     def send_one(field_name, field_unit, field_description):
       discovery_topic = 'homeassistant/sensor/kettler/kettler_{}/config'.format(field_name)
       discovery_payload = {
-        "name": "Kettler {}".format(field_description),
+        "name": field_description,
         "state_topic": "home/kettler/status",
         "unit_of_measurement": field_unit,
         "unique_id": "kettler/{}".format(field_name),
