@@ -9,6 +9,10 @@ import time
 def main():
   """Main function. Restarted externally if it fails."""
 
+  if config.ACTIVITY_PIN_BCM is not None:
+    import activity
+    activity.init_activity()
+
   dev = kettler.KettlerDevice(config.KETTLER_DEVICE_SERIAL)
   print("Opened Kettler device:")
   print("  ID: {}".format(dev.device_id))
@@ -36,44 +40,51 @@ def main():
   )
   time.sleep(1.0)
 
+  print("Sending initial status...")
+  status = dev.get_status()
+  mqtt.publish_status(status)
+  time.sleep(1.0)
+
   print("Starting main loop...")
-  last_use_time = None
-  last_publish_time = None
-  is_in_use = False
-  was_in_use = False
 
   while True:
-    status = dev.get_status()
-    # Speed indicates whether the device is actually in use
-    was_in_use = is_in_use
-    is_in_use = status.speed_kmph > 0.0
-    if is_in_use and not was_in_use:
-      print("Device is now in use.")
+    if config.ACTIVITY_PIN_BCM is not None:
+      # We need to wait for raising edge on the activity
+      # pin before starting reading.
+      print("Waiting for a raising edge on the activity pin...")
+      import activity
+      while activity.read_activity_pin() != 0:
+        time.sleep(0.5)
+      while activity.read_activity_pin() != 1:
+        time.sleep(0.5)
+      print("Device got activated!")
 
-    if is_in_use or was_in_use:
-      # Device that is in use gets fast publishing
-      last_use_time = time.time()
-      mqtt.publish_status(dev.get_status())
-      last_publish_time = time.time()
+      # It needs some time to start.
+      time.sleep(10.0)
+      print("Trying to read the device...")
+      dev.get_status()
+      print("OK. Now sending data to MQTT")
 
-    else:
-      # Not in use. Slower publish.
-      if last_publish_time is None or (time.time() - last_publish_time > config.IDLE_MQTT_UPDATE_TIME):
-        mqtt.publish_status(dev.get_status())
-        last_publish_time = time.time()
+    last_use_time = time.time()
 
-      # If it hasn't been used for a while, reset the device.
-      if last_use_time is not None:
+    while True:
+        status = dev.get_status()
+        mqtt.publish_status(status)
+
+        is_in_use = status.speed_kmph > 0.0
+        if is_in_use:
+          last_use_time = time.time()
+
+        # If it hasn't been used for a while, reset the device
+        # and go back to waiting for raising edge.
         if time.time() - last_use_time > config.IDLE_DEVICE_RESET_TIME:
-          print("Resetting device...")
+          print("No activity for a while. Resetting device...")
           dev.reset()
           time.sleep(5.0)
-          last_use_time = None
-          last_publish_time = None
           print("Done.")
+          break  # Go wait for the raising edge again.
 
-    # Maximum frequency of updates when in use
-    time.sleep(config.BUSY_MQTT_UPDATE_TIME)
+        time.sleep(config.MQTT_UPDATE_TIME)
 
 
 if __name__ == "__main__":
