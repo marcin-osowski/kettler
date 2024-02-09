@@ -28,8 +28,6 @@ def write_stats_to_db(start_time, end_time, status):
   # Format the dates. They come from time.time() and are in seconds.
   start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
   end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
-  print("Start time: {}".format(start_time))
-  print("End time: {}".format(end_time))
 
   # Write the stats.
   conn.execute(
