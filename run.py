@@ -5,6 +5,42 @@ import kettler
 import mqtt_publisher
 
 import time
+import sqlite3
+
+
+def write_stats_to_db(start_time, end_time, status):
+  """Writes stats of an exercise to the database."""
+
+  # We want to write distance, time, energy to the database.
+  conn = sqlite3.connect(config.DB_FILE)
+  # Create the table if it doesn't exist.
+  conn.execute(
+    "CREATE TABLE IF NOT EXISTS exercise_stats ("
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  start_time TEXT,"
+    "  end_time TEXT,"
+    "  distance_km REAL,"
+    "  time_elapsed_sec INTEGER,"
+    "  energy_kjoule REAL"
+    ")"
+  )
+
+  # Format the dates. They come from time.time() and are in seconds.
+  start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
+  end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
+  print("Start time: {}".format(start_time))
+  print("End time: {}".format(end_time))
+
+  # Write the stats.
+  conn.execute(
+    "INSERT INTO exercise_stats ("
+    "  start_time, end_time, distance_km, time_elapsed_sec, energy_kjoule"
+    ") VALUES (?, ?, ?, ?, ?)",
+    (start_time, end_time, status.distance_km, status.time_elapsed_sec, status.energy_kjoule)
+  )
+  conn.commit()
+  conn.close()
+
 
 def main():
   """Main function. Restarted externally if it fails."""
@@ -65,7 +101,8 @@ def main():
       dev.get_status()
       print("OK. Now sending data to MQTT")
 
-    last_use_time = time.time()
+    firt_use_time = time.time()
+    last_use_time = time.time()  # will be updated when the device is used.
 
     while True:
         status = dev.get_status()
@@ -78,7 +115,9 @@ def main():
         # If it hasn't been used for a while, reset the device
         # and go back to waiting for raising edge.
         if time.time() - last_use_time > config.IDLE_DEVICE_RESET_TIME:
-          print("No activity for a while. Resetting device...")
+          print("No activity for a while. Saving stats...")
+          write_stats_to_db(firt_use_time, last_use_time, status)
+          print("Resetting the device...")
           dev.reset()
           time.sleep(5.0)
           print("Done.")

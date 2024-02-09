@@ -1,3 +1,6 @@
+import os.path
+CURRENT_DIR=os.path.dirname(os.path.abspath(__file__))
+
 KETTLER_DEVICE_SERIAL=""
 
 MQTT_CLIENT_ID="kettler"
@@ -16,3 +19,6 @@ IDLE_DEVICE_RESET_TIME=300.0
 # Set to None if the pin is not used, the device
 # will be polled constantly then.
 ACTIVITY_PIN_BCM=None
+
+# DB file that will store stats
+DB_FILE=os.path.join(CURRENT_DIR, "db.sqlite3")
