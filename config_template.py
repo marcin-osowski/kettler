@@ -22,3 +22,7 @@ ACTIVITY_PIN_BCM=None
 
 # DB file that will store stats
 DB_FILE=os.path.join(CURRENT_DIR, "db.sqlite3")
+
+# HTTP server
+HTTP_HOST="127.0.0.1"
+HTTP_PORT=8080

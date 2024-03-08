@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Exercise stats</title>
+</head>
+
+<body>
+<h1>Exercise stats</h1>
+<table style="border-spacing: 10px;">
+  <tr>
+    <th>Day</th>
+    <th>Distance</th>
+    <th>Time elapsed</th>
+    <th>Energy</th>
+  </tr>
+  {% for row in rows %}
+  <tr>
+    <td>{{ row["start_day"] }}</td>
+    <td align="right">{{ row["distance"] }}</td>
+    <td align="right">{{ row["time"] }}</td>
+    <td align="right">{{ row["energy"] }}</td>
+  </tr>
+  {% endfor %}
+</body>
+</html>
