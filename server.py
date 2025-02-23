@@ -19,7 +19,6 @@ def index():
       ORDER BY start_time DESC
     """)
     raw_rows = c.fetchall()
-    conn.close()
     rows = []
     for row in raw_rows:
         start_day = row[0][:10]
@@ -36,8 +35,27 @@ def index():
             "time": time,
             "energy": energy,
         })
-    return render_template('index.html', rows=rows)
+    c = conn.cursor()
+    c.execute("""
+      SELECT
+        SUBSTR(start_time, 1, 10) AS start_day,
+        SUM(energy_kjoule) as total_energy
+      FROM exercise_stats
+      WHERE energy_kjoule > 50.0 AND start_time > '2025-01-01'
+      GROUP BY start_day
+      ORDER BY start_day ASC
+    """)
+    raw_rows = c.fetchall()
+    day_rows = []
+    for row in raw_rows:
+        day_rows.append({
+            "day": row[0],
+            "calories": row[1] / 4.184,
+        })
+    conn.close()
+    return render_template('index.html', rows=rows, day_rows=day_rows)
 
 if __name__ == '__main__':
+    print(f"Running serve(host={config.HTTP_HOST}, port={config.HTTP_PORT})")
     waitress.serve(app, host=config.HTTP_HOST, port=config.HTTP_PORT)
 
