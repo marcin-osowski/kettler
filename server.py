@@ -2,6 +2,7 @@
 
 import config
 
+from datetime import datetime, timedelta
 from flask import Flask, render_template
 import sqlite3
 import waitress
@@ -52,6 +53,23 @@ def index():
             "day": row[0],
             "calories": row[1] / 4.184,
         })
+
+    # Adding missing zeros
+    min_day = min([row["day"] for row in day_rows])
+    max_day = max([row["day"] for row in day_rows])
+    min_day = datetime.strptime(min_day, "%Y-%m-%d")
+    max_day = datetime.strptime(max_day, "%Y-%m-%d")
+    day = min_day
+    while day <= max_day:
+        day_str = day.strftime("%Y-%m-%d")
+        if day_str not in [row["day"] for row in day_rows]:
+            day_rows.append({
+                "day": day_str,
+                "calories": "null",
+            })
+        day = day + timedelta(days=1)
+    day_rows = sorted(day_rows, key=lambda x: x["day"])
+
     conn.close()
     return render_template('index.html', rows=rows, day_rows=day_rows)
 
