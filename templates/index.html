@@ -17,7 +17,7 @@
 
       var options = {
         title: 'Calories burned per day',
-        curveType: 'function',
+        bar: {groupWidth: '95%'},
         legend: { position: 'none', },
         hAxis: {
           slantedText: true,
@@ -26,7 +26,7 @@
         vAxis: { title: 'Energy [kcal]', },
       };
 
-      var chart = new google.visualization.LineChart(document.getElementById('day_chart'));
+      var chart = new google.visualization.ColumnChart(document.getElementById('day_chart'));
 
       chart.draw(data, options);
     }
