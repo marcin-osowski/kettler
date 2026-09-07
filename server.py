@@ -54,6 +54,10 @@ def index():
             "calories": row[1] / 4.184,
         })
 
+    if not day_rows:
+        conn.close()
+        return render_template("index.html", rows=rows, day_rows=day_rows)
+
     # Adding missing zeros
     min_day = min([row["day"] for row in day_rows])
     max_day = max([row["day"] for row in day_rows])
