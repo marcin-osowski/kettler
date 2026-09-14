@@ -1,72 +1,190 @@
+Kettler Unix E serial protocol
+=============================
 
-RS: reset
-CM: command mode
-EE: unknown, but it clearly changes state, error messages change
+Scope: tested SJ10X UNIX E, ID SJ10X3240, firmware 3240, CA 07670-100-2002.
+Verified 2026-09-14. Other Kettler models can use different commands and limits.
 
-PD, PE, PT, PW, ST: all return the same thing, which is the current state of the machine
-# heartRate cadence speed distanceInFunnyUnits destPower energy timeElapsed realPower
-# 000 052 095 000 030 0001 00:12 030
+Transport and ownership
+-----------------------
+57600 baud, 8N1, ASCII commands terminated by CRLF (\r\n).
+The application uses /dev/ttyUSB0 through a CP2102 USB-to-UART bridge.
+The bridge datasheet is included in this repository as datasheets/CP2102-9.pdf
+(CP2102-9.pdf beside this file).
+Stop the logger and verify exclusive serial access before manual tests.
+Constructing KettlerDevice already sends ID/KI/SN/VE.
+repl.py additionally sends RS automatically; it intentionally accepts arbitrary
+commands. Ctrl-C/Ctrl-D closes the port but does not restore targets or mode.
 
-PD: putdistance. The argument is the distance in 0.1km. The values are between 0 and999
-PT: puttime. The argument is the time in seconds. The values are between 0 and 9959. First two digits describe minutes last two digits describe seconds. If the number of seconds is greater than 59 it will be reduced to 59
-PP: putpower. The argument is power in watts. The values are between 25 and 400 in 5 steps. The values less than 25 are converted to 25. The values greater than 400 are converted to 400. The values are round down until the becomes multiple of 5
-PW: putwatt. The argument is power in watts. The values are between 25 and 400 in 5 steps. The values less than 25 are converted to 25. The values greater than 400 are converted to 400. The values are round down until the becomes multiple of 5
-PW nnn - set power to nnn watts
+Single-line responses end in CRLF. RF returns multiple lines ending in ACK.
+A status-shaped reply does not prove that a setter applied: after RS, PW 30
+left the target at 25 W; after CM it changed to 30 W. Verify with ST.
 
+Command index
+-------------
+Names below are descriptive mnemonics, not a claim about official expansions.
+Unknown meanings are left unknown rather than inferred from the letters.
+This lists commands referenced here, not every command the firmware may accept.
 
-TR: returns time? How can it have time if it's not plugged in all the time?
+Identity and established reads:
+  ID         Device ID         Console identifier.
+  KI         Model identity    Model string; acronym expansion unknown.
+  SN         Serial Number     Serial/identity string; internal format unknown.
+  VE         Version           Firmware/version string.
+  CA         Article identity  Article/config string; acronym expansion unknown.
+  TR         Console time      Date/time read; acronym expansion unknown.
+  ST         Status            Eight fields; targets or counters depend on mode.
+  ES1        Extended status 1 Twelve fields; prefix meaning unresolved.
+  RF [path]  Read File          Directory/program read, multiline response.
 
+State-changing commands:
+  RS         Reset             Clears console state.
+  CM         Command Mode      First entry can erase the completed workout.
+  PD n       Put Distance      Set distance target in 0.1 km units.
+  PE n       Put Energy        Set energy target in kJ.
+  PT n       Put Time          Set target as minutes plus two seconds digits.
+  PW n       Put Watt          Set target power in W.
+  Bare PD/PE/PT/PW also change targets; see boundaries below.
 
-ES1 - prints some information about the exercise
+Unresolved, unverified or rejected commands (not a safe-read list):
+  ES2        Extended status 2 Six observed fields; semantics unresolved.
+  BS         Unknown           Eight status-like fields, including a 666 value.
+  KR         Unknown           Observed R/P sequences.
+  VS         Unknown           Observed response 000.
+  CD         Unknown locally   Public notes describe countdown mode; not verified here.
+  EE         Unknown           Historical observations indicate state changes.
+  LB/SP/TS   Unknown           Historical ACK replies do not establish their effects.
+  PI         Put Incline       Name from existing code; not tested on this unit.
+  PP         Put Power?        Historical name only; tested arguments returned ERROR.
 
-ID: device ID
-KI: device model
+Modes and destructive operations
+--------------------------------
+RS resets the console. After a two-second wait the tested idle baseline was
+25 W and zero distance, time and energy.
 
+First CM after an ordinary workout returned ACK, cleared its 77 seconds,
+43 kJ and 0.1 km, and changed the 95 W target to 25 W. Repeating CM while
+already in command mode returned RUN and preserved configured targets.
+Do not use CM as a harmless wake command or enter it to inspect a workout
+whose counters you want to keep.
 
+Targets and verified boundaries
+--------------------------------
+PD n (Put Distance): distance target in 0.1 km units, clamped to 0..4999 (0..499.9 km).
+      4999 is accepted; 5000 and 10000 become 4999; -1 becomes zero.
+PE n (Put Energy): energy target in kJ, clamped to 0..9999.
+      9999 is accepted; 10000 and 20000 become 9999; -1 becomes zero.
+PT n (Put Time): minutes followed by two seconds digits, supporting 0..199:59.
+      0130 -> 01:30; 0060/0099 -> 00:59; 10000 -> 100:00;
+      19959 -> 199:59; 19960/19999/20000 -> 199:59; -1 -> 00:00.
+      This is NOT a fixed four-digit field or a total-seconds argument.
+PW n (Put Watt): power target, clamped to 25..400 W, rounded to the nearest 5 W for
+      tested integer inputs: 27->25, 28->30, 32->30, 33->35,
+      397->395, 398/399->400. -1/0/24->25; 401/999/1000->400.
+      Fractional raw arguments and half-step ties were not tested.
 
-http://home.vianetworks.nl/users/mhwlng/kettler.lua
-https://past.async.fi/2012/03/kettler-ergometer-serial-protocol/
-https://github.com/joekearney/kettler-to-ant/blob/master/components/kettler_serial.py
-https://technomathematik.blogspot.com/2013/10/ergometer-kettler-fx1-serial-protocol.html
+Bare PD, PE, PT and PW are NOT read-only queries. In command mode they reset
+the respective target to zero distance, zero energy, 00:00 or 25 W.
+PP is not a verified PW alias: PP 24, 26, 28 and 401 all returned ERROR.
 
-Sent: b'BS'
-Received response:  b'0\t0\t0\t0\t666\t0\t00:00\t0\r\n'
-Sent: b'CA'
-Received response:  b'07670-100-2002\r\n'
-Sent: b'CD'
-Received response:  b'RUN\r\n'
-Skipping: b'CM'
-Skipping: b'EE'
-Sent: b'ID'
-Received response:  b'SJ10X3240\r\n'
-Sent: b'KI'
-Received response:  b'SJ10X UNIX E\r\n'
-Sent: b'KR'
-Received response:  b'0 \r\n'
-Sent: b'LB'
-Received response:  b'ACK\r\n'
-Sent: b'PD'
-Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
-Sent: b'PE'
-Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
-Sent: b'PT'
-Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
-Sent: b'PW'
-Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
-Sent: b'RF'
-Received response:  b'<directory path="/">\r\n\t<entry type="d">users</entry>\r\n\t<entry type="d">programs</entry>\r\n</directory>\r\nACK\r\n'
-Skipping: b'RS'
-Sent: b'SN'
-Received response:  b'247A62BB 0612000443\r\n'
-Sent: b'SP'
-Received response:  b'ACK\r\n'
-Sent: b'ST'
-Received response:  b'0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
-Sent: b'TR'
-Received response:  b'16:25:16 09.11.23\r\n'
-Sent: b'TS'
-Received response:  b'ACK\r\n'
-Sent: b'VE'
-Received response:  b'3240\r\n'
-Sent: b'VS'
-Received response:  b'000\r\n'
+Avoid oversized raw PT probes. After PT 99959 in one test sequence, even
+ID/ST/RS stopped receiving responses; physical Reset restored communication.
+The cause and threshold are unproven. PT 49959/50000 had saturated at 199:59,
+but that is not a reason to use large arguments in normal code.
+
+Python wrappers accept canonical ranges, rejecting invalid/nonfinite values
+before conversion: put_distance(km) 0..499.9, put_energy(kJ) 0..9999,
+put_time(total_seconds) 0..11999, put_watts(W) 25..400. Extra fractional tenths
+of km, kJ, seconds and watts are truncated toward zero. Power is not rounded
+to a 5 W step in Python; the device does that. Raw REPL input bypasses wrapper
+validation for deliberate exploration.
+
+Status interpretation
+---------------------
+ST returns eight tab-separated fields:
+  heartRate cadence speed10 distance10 targetPowerW energyKJ minutes:seconds realPowerW
+
+The logger maps speed10 and distance10 by dividing by ten and parses the time
+as minutes*60+seconds. Minute fields can exceed 99.
+
+In normal exercise, distance/time/energy are accumulated values. In command
+mode ST can instead expose the configured distance/time/energy TARGETS.
+ES1 returns four unknown prefix fields followed by eight status-like fields.
+Its suffix agreed with ST after the ordinary workout, but retained zero
+counters while ST showed targets during idle command-mode tests. Do not treat
+ST and ES1 as interchangeable or switch the logger based only on idle tests.
+The four ES1 prefix fields were zero in both tested states; meaning unknown.
+
+Examples from separate captured states (escaped tabs and CRLF):
+
+After an ordinary workout, before CM:
+  ST  -> '0\t0\t0\t1\t095\t43\t01:17\t0\r\n'
+  ES1 -> '0\t0\t0\t0\t0\t0\t0\t1\t095\t43\t01:17\t0\r\n'
+
+With zero exercise counters, after CM, PT 0130 and PD 2:
+  ST  -> '0\t0\t0\t2\t025\t0\t01:30\t0\r\n'
+  ES1 -> '0\t0\t0\t0\t0\t0\t0\t0\t025\t0\t00:00\t0\r\n'
+A following ST retained those targets: reading ES1 did not clear them.
+PE 10 similarly changed ST energy to 10 while ES1 energy remained zero.
+
+Nonzero pulse-like readings also occurred while nobody was exercising.
+Their source is unknown; they are not proof of a real pulse measurement.
+BS returns eight status-like fields but can contain 666 in the power position.
+ES2 returns six fields. KR can return long R/P sequences. Their semantics and
+side effects are unresolved; do not label them safe ST aliases.
+
+Identity and data reads
+-----------------------
+ID -> SJ10X3240
+KI -> SJ10X UNIX E
+VE -> 3240
+CA -> 07670-100-2002
+SN -> two space-separated identity values; internal format is not decoded.
+TR -> console date/time; the clock was incorrect. Logger timestamps use Pi time.
+VS -> 000 in the observed states; meaning unknown.
+
+RF                 lists /users and /programs.
+RF /users          lists user0 through user4.
+RF /programs       lists user0 through user4 directories and p0 through p5 files.
+RF /programs/user0 listed p5 in the tested configuration.
+RF /programs/p0    returned 120 stages with level/elevation and scale,
+                   warm-up and cool-down metadata; no program was activated.
+Responses are XML-like, not necessarily strict XML: index=1 attributes are
+unquoted. Do not infer supported profile/program writes from these reads.
+
+CD, EE, LB, SP, TS and PI do not have verified operational semantics here.
+An ACK alone does not establish read-only behavior. Avoid guessed commands
+when preserving console state matters.
+
+Cold-screen startup
+-------------------
+One controlled observation: open the port for five seconds without read/write
+calls, close it, and the screen remained dark. Reopen, send ID with a one-second
+timeout: no bytes. Keep that port open, wait five seconds, send ID again:
+SJ10X3240 was received. A delayed first reply was not excluded; minimum delay
+and repeatability are unknown. Other models reportedly wake on serial open.
+
+Local initialization recovers only from an empty first ID: wait five seconds,
+consume a queued complete response if available, otherwise send one more ID.
+It handles a late duplicate ID before KI and rejects missing/partial startup
+frames rather than shifting KI/SN/VE responses. There are no automatic retries
+for writes, no generic retry loop, and no RS/CM in identity recovery.
+
+Public comparisons, not specifications for this console
+-------------------------------------------------------
+JErgometer (2012, model unspecified): P setters including PE, reset-like CM/CD.
+https://github.com/xylo/JErgometer/blob/5bc1aac8b8a5ff3344aa0f9770d5aa7b490003bf/doc/ketter_protocol.txt
+
+kettler-tcx (2016, SDFB X3): command captures and status-shaped setter replies.
+https://github.com/knallio/kettler-tcx/blob/master/CODES
+
+SJ10B E5 report (2022): PW7 -> 25 and PW107 -> 105, not our complete bounds.
+https://github.com/360manu/kettlerUSB2BLE/issues/18#issuecomment-1335976999
+
+Other-model serial-open wake report, contrasting with our open-only test.
+https://github.com/360manu/kettlerUSB2BLE/issues/18#issuecomment-923189163
+
+Incyclist ES1 addition (2023): parser was TODO, not validated SJ10X semantics.
+https://github.com/incyclist/devices/commit/0c859d1f364cc29f441aecd04ea47e5cc18793cb
+
+No independent public source found corroborates this console's exact PD/PT/PE
+maxima, the large-PT response-loss threshold, or a reliable wake delay.

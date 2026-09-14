@@ -39,11 +39,11 @@ class ReplTests(unittest.TestCase):
             self.assertEqual(port, 'FAKE')
             return self.device
         self.factory.side_effect = opened
-        result, output = self.run_repl(['', 'RF', 'PW 123', EOFError()])
+        result, output = self.run_repl(['', 'RF', 'PW 999', EOFError()])
         self.assertEqual(result, 0)
         self.device.reset.assert_called_once()
         self.assertEqual(self.device._send_command_multi_line_resp.call_count, 2)
-        self.device._send_command_multi_line_resp.assert_called_with('PW 123', check_noerror=False)
+        self.device._send_command_multi_line_resp.assert_called_with('PW 999', check_noerror=False)
         self.assertIn("'ACK\\r\\n'", output)
         self.device.close.assert_called_once()
 
