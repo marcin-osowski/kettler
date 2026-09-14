@@ -127,8 +127,13 @@ class KettlerDevice(object):
       raise InvalidDeviceResponse("Could not get device ID. Is the device connected?")
 
   def __del__(self):
-    if self.ser.is_open:
-      self.ser.close()
+    self.close()
+
+  def close(self):
+    """Close the serial port, including after partial initialization."""
+    ser = getattr(self, "ser", None)
+    if ser is not None and ser.is_open:
+      ser.close()
 
   def _load_device_details(self):
     self.device_id = self._send_command("ID")
@@ -238,9 +243,8 @@ class KettlerDevice(object):
     seconds = int(seconds)
     if seconds < 0:
       raise ValueError("Time must be positive")
-    if seconds > 9959:
-      # Maybe it can be more, but I don't know.
-      raise ValueError("Time must be less than 9959 seconds")
+    if seconds > 5999:
+      raise ValueError("Time must be at most 5999 seconds (99:59)")
     minutes = seconds // 60
     seconds = seconds % 60
     self._send_command(f"PT {minutes:02d}{seconds:02d}")
